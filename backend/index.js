@@ -4,18 +4,21 @@ import dotenv from "dotenv";
 import mongoose, { mongo, Mongoose } from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-
+dotenv.config();
 const app = express();
 app.use(cors());
 app.use(express.json()); //to parse incoming data
-app.listen(3000, function () {
-  console.log("server running at localhost:3000");
+app.listen(3001, function () {
+  console.log("server running at localhost:3001");
 });
 
 //connect the database using mongoose
 
 mongoose
-  .connect("mongodb://localhost:27017/feedback")
+  // .connect("mongodb://localhost:27017/feedback") this is from local mongo app
+  .connect(process.env.MONGODB_URL)
+
+  //and this is from atlas mongodb web.
   .then(function () {
     console.log("connected to database");
   })
@@ -30,8 +33,18 @@ const userSchema = new mongoose.Schema({
   password: String,
 });
 
+//create schema for feedback.
+
+const feedbackSchema = new mongoose.Schema({
+  name: String,
+  message: String,
+});
 //create model for the model
 const User = mongoose.model("User", userSchema);
+
+//create model for feedback
+
+const Feedback = mongoose.model("Feedback", feedbackSchema);
 
 //post api for register
 app.post("/register", async function (req, res) {
@@ -64,11 +77,25 @@ app.post("/login", async function (req, res) {
     if (isMatch) {
       //create token
       const token = await jwt.sign(email, "secret_key");
-      res.json(token); //sending the success as message
+      res.json({ token: token }); //sending the success as message
     } else {
-      res.json("password not matching ");
+      res.json({ message: "password not matching " });
     }
   } else {
-    res.json("user not found");
+    res.json({ message: "user not found" });
   }
+});
+
+//whenever user send the data it comes under post api.
+app.post("/feedback", async (req, res) => {
+  const { name, message } = req.body;
+  const feedback = new Feedback({ name: name, message: message });
+  const result = await feedback.save();
+  res.json(result);
+});
+
+app.get("/feedbacks", async (req, res) => {
+  const feedbacks = await Feedback.find({});
+
+  res.json(feedbacks);
 });
